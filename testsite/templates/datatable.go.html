@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang=en>       
+    {{RenderTemplate "base/head" .}}
+    <body class="h-screen ">        
+        <div class="h-[95%] flex flex-col m-auto w-[60%]">
+            <a href="index">Home</a>
+            <span>BONGO Data</span>
+            
+            {{$data := (ContentData "data/ages.json")}}
+            <table>
+                <tr>
+                    <td>Name</td>
+                    <td>Age</td>
+                </tr>
+                {{range $e := (index $data "ages")}}
+                <tr>
+                    <td>{{index $e "name"}}</td>
+                    <td>{{index $e "age"}}</td>
+                </tr>
+                {{end}}
+            </table>
+        </div>
+
+        {{RenderTemplate "footer" .}}        
+    </body>
+</html>
+

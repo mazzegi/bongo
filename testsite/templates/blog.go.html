@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang=en>       
+    {{RenderTemplate "base/head" .}}
+    <body class="h-screen ">
+        <div class="h-[95%] flex flex-col m-auto w-[60%]">
+            <span>BONGO Blog</span>
+            <div class="flex-flex-col space-y-2">
+                {{range $e := (ContentEntries "blog")}}
+                    <div class="w-full border border-gray-200 rounded p-2">                    
+                        <div>{{ContentHTML $e.Path}}</div>
+                    </div>
+
+                {{end}}
+            </div>
+        </div>
+
+        {{RenderTemplate "footer" .}}        
+    </body>
+</html>
+

@@ -1,0 +1,16 @@
+{
+  "ages": [
+    {
+      "name": "hugo",
+      "age": 23
+    },
+    {
+      "name": "bongo",
+      "age": 0.5
+    },
+    {
+      "name": "fango",
+      "age": 1e6
+    }
+  ]
+}
