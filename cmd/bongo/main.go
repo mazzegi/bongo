@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"os"
 	"os/signal"
 	"syscall"
@@ -11,9 +12,14 @@ import (
 )
 
 func main() {
-	s, err := server.New("localhost:8080", "../../testsite/")
+	bind := flag.String("bind", "127.0.0.1:8080", "bind address")
+	site := flag.String("site", "../../testsite/", "site to serve")
+	flag.Parse()
+
+	s, err := server.New(*bind, *site)
 	if err != nil {
-		panic(err)
+		log.Errorf("new-server bind=%q, site=%q: %v", *bind, *site, err)
+		os.Exit(1)
 	}
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGINT, syscall.SIGTERM, syscall.SIGKILL)

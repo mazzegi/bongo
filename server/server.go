@@ -9,6 +9,7 @@ import (
 
 	"github.com/gorilla/mux"
 	"github.com/mazzegi/bongo/cms"
+	"github.com/mazzegi/log"
 	"github.com/pkg/errors"
 )
 
@@ -52,7 +53,7 @@ type Server struct {
 	templates  *Templates
 }
 
-func (s *Server) RunCtx(ctx context.Context) error {
+func (s *Server) RunCtx(ctx context.Context) {
 	router := mux.NewRouter()
 
 	// serve static files
@@ -60,7 +61,8 @@ func (s *Server) RunCtx(ctx context.Context) error {
 	router.PathPrefix("/static/").Handler(staticSiteServer).Methods("GET")
 
 	// serve site
-	router.PathPrefix("/site/").HandlerFunc(s.handleGETTemplate).Methods("GET")
+	//router.PathPrefix("/site/").HandlerFunc(s.handleSite).Methods("GET", "POST")
+	router.PathPrefix("/site/").HandlerFunc(s.handleSite)
 
 	// serve content (under responisbility of the cms)
 	router.PathPrefix("/content/").HandlerFunc(s.handleGETPublicContent).Methods("GET")
@@ -75,7 +77,6 @@ func (s *Server) RunCtx(ctx context.Context) error {
 
 	<-ctx.Done()
 	s.shutdown(1 * time.Second)
-	return nil
 }
 
 func (s *Server) shutdown(timeout time.Duration) {
@@ -85,6 +86,17 @@ func (s *Server) shutdown(timeout time.Duration) {
 }
 
 //
+
+func (s *Server) handleSite(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		s.handleGETTemplate(w, r)
+	case http.MethodPost:
+		s.handlePOSTSite(w, r)
+	default:
+		http.Error(w, "method-not-allowed", http.StatusMethodNotAllowed)
+	}
+}
 
 func (s *Server) handleGETTemplate(w http.ResponseWriter, r *http.Request) {
 	tplName := strings.TrimPrefix(r.URL.Path, "/site/")
@@ -105,4 +117,11 @@ func (s *Server) handleGETPublicContent(w http.ResponseWriter, r *http.Request) 
 	w.Header().Add("Content-Type", string(e.ContentType))
 	w.WriteHeader(http.StatusOK)
 	w.Write(e.Payload)
+}
+
+func (s *Server) handlePOSTSite(w http.ResponseWriter, r *http.Request) {
+	cname := strings.TrimPrefix(r.URL.Path, "/site/")
+	log.Infof("POST to %q (ref by %q)", cname, r.Referer())
+	http.Redirect(w, r, r.Referer(), http.StatusFound)
+	//TODO: think about calling a LUA script here filepath=<route>.lua with some context (from request and global)
 }
