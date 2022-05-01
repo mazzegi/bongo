@@ -59,8 +59,15 @@ func (s *Server) RunCtx(ctx context.Context) error {
 	staticSiteServer := http.StripPrefix("/static", http.FileServer(http.Dir(s.dirEnv.Static())))
 	router.PathPrefix("/static/").Handler(staticSiteServer).Methods("GET")
 
-	// servce site
+	// serve site
 	router.PathPrefix("/site/").HandlerFunc(s.handleGETTemplate).Methods("GET")
+
+	// serve content (under responisbility of the cms)
+	router.PathPrefix("/content/").HandlerFunc(s.handleGETPublicContent).Methods("GET")
+
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/site/index", http.StatusMovedPermanently)
+	})
 
 	s.httpServer.Handler = router
 	go s.httpServer.Serve(s.listener)
@@ -78,8 +85,6 @@ func (s *Server) shutdown(timeout time.Duration) {
 }
 
 //
-type TemplateData struct {
-}
 
 func (s *Server) handleGETTemplate(w http.ResponseWriter, r *http.Request) {
 	tplName := strings.TrimPrefix(r.URL.Path, "/site/")
@@ -88,4 +93,16 @@ func (s *Server) handleGETTemplate(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+}
+
+func (s *Server) handleGETPublicContent(w http.ResponseWriter, r *http.Request) {
+	cname := strings.TrimPrefix(r.URL.Path, "/content/")
+	e, err := s.cms.PublicEntry(cname)
+	if err != nil {
+		http.Error(w, "not-found", http.StatusNotFound)
+		return
+	}
+	w.Header().Add("Content-Type", string(e.ContentType))
+	w.WriteHeader(http.StatusOK)
+	w.Write(e.Payload)
 }

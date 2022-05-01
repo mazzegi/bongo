@@ -8,10 +8,12 @@ import (
 type ContentType string
 
 const (
-	ContentTypeMarkdown ContentType = "text/markdown"
-	ContentTypeJSON     ContentType = "application/json"
-	ContentTypeText     ContentType = "text/plain"
-	ContentTypeUnknown  ContentType = "unknown"
+	ContentTypeMarkdown  ContentType = "text/markdown"
+	ContentTypeJSON      ContentType = "application/json"
+	ContentTypeText      ContentType = "text/plain"
+	ContentTypeImagePNG  ContentType = "image/png"
+	ContentTypeImageJPEG ContentType = "image/jpeg"
+	ContentTypeUnknown   ContentType = "unknown"
 )
 
 func ContentTypeFromPath(path string) ContentType {
@@ -23,7 +25,17 @@ func ContentTypeFromPath(path string) ContentType {
 		return ContentTypeJSON
 	case ".txt":
 		return ContentTypeText
+	case ".png":
+		return ContentTypeImagePNG
+	case ".jpeg", ".jpg":
+		return ContentTypeImageJPEG
 	default:
 		return ContentTypeUnknown
 	}
+}
+
+type Entry struct {
+	Name        string
+	ContentType ContentType
+	Payload     []byte
 }

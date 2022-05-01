@@ -92,3 +92,17 @@ func (c *CMS) Data(path string) (map[string]any, error) {
 	}
 	return data, nil
 }
+
+func (c *CMS) PublicEntry(path string) (Entry, error) {
+	//TODO: add concept of public/private and check if path is public
+	bs, err := os.ReadFile(c.resolve(path))
+	if err != nil {
+		return Entry{}, errors.Wrapf(err, "read-file %q", path)
+	}
+	ct := ContentTypeFromPath(path)
+	return Entry{
+		Name:        path,
+		ContentType: ct,
+		Payload:     bs,
+	}, nil
+}
