@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang=en>    
+    <head>
+        <meta charset=utf-8>
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>BONGO</title>
+        <link integrity="" rel="stylesheet" href="/static/tailwind.css"> 
+        <link rel="icon" type="image/png" href="/static/bongo.png">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    </head>
+    <body class="h-screen ">
+        <div class="h-[95%] flex flex-col m-auto w-[60%]">
+            {{RenderSlot .}}
+        </div>
+
+        <div class="h-[5%]">
+            <div class="h-full p-2 bg-gray-200">    
+                footer    
+            </div>
+          </div>   
+    </body>
+</html>

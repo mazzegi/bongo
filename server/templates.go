@@ -113,7 +113,10 @@ func (ts *Templates) Reload() error {
 	return nil
 }
 
-func (ts *Templates) Render(w io.Writer, name string, data any) error {
+type TemplateContext struct {
+}
+
+func (ts *Templates) Render(w io.Writer, name string) error {
 	ts.RLock()
 	defer ts.RUnlock()
 
@@ -121,7 +124,8 @@ func (ts *Templates) Render(w io.Writer, name string, data any) error {
 	if !ok {
 		return errors.Errorf("no such template %q", name)
 	}
-	return tpl.Execute(w, data)
+	tctx := &TemplateContext{}
+	return tpl.Execute(w, tctx)
 }
 
 func (ts *Templates) funcs() template.FuncMap {

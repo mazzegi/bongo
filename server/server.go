@@ -79,15 +79,11 @@ func (s *Server) shutdown(timeout time.Duration) {
 
 //
 type TemplateData struct {
-	Content *cms.CMS
 }
 
 func (s *Server) handleGETTemplate(w http.ResponseWriter, r *http.Request) {
 	tplName := strings.TrimPrefix(r.URL.Path, "/site/")
-	data := TemplateData{
-		Content: s.cms,
-	}
-	err := s.templates.Render(w, tplName, data)
+	err := s.templates.Render(w, tplName)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
