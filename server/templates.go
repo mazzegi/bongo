@@ -18,6 +18,7 @@ import (
 
 const (
 	templateSuffix = ".go.html"
+	layoutTemplate = "__layout.go.html"
 )
 
 func NewTemplates(root string, cms *cms.CMS) (*Templates, error) {
@@ -36,11 +37,17 @@ func NewTemplates(root string, cms *cms.CMS) (*Templates, error) {
 	return tpls, nil
 }
 
+type TemplateExt struct {
+	Name           string
+	LayoutTemplate *template.Template
+	Template       *template.Template
+}
+
 type Templates struct {
 	sync.RWMutex
 	root string
 	cms  *cms.CMS
-	tpls map[string]*template.Template
+	tpls map[string]*TemplateExt
 }
 
 func (ts *Templates) WatchCtx(ctx context.Context, onEvt func() error) error {
@@ -70,23 +77,27 @@ func (ts *Templates) WatchCtx(ctx context.Context, onEvt func() error) error {
 	}
 }
 
-func (ts *Templates) Reload() error {
-	ts.Lock()
-	defer ts.Unlock()
-
-	log.Infof("parse templates ...")
-	ts.tpls = make(map[string]*template.Template)
-	err := filepath.Walk(ts.root, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
+func (ts *Templates) loadDir(dir string) error {
+	fis, err := os.ReadDir(dir)
+	if err != nil {
+		return errors.Wrapf(err, "read-dir %q", dir)
+	}
+	var tpls []*TemplateExt
+	var layout *template.Template
+	for _, fi := range fis {
+		path := filepath.Join(dir, fi.Name())
+		if fi.IsDir() {
+			err := ts.loadDir(path)
+			if err != nil {
+				return errors.Wrapf(err, "load-dir %q", path)
+			}
+			continue
 		}
 		if !strings.HasSuffix(path, templateSuffix) {
-			return nil
+			continue
 		}
 
+		//
 		tpath := strings.TrimPrefix(path, ts.root)
 		tpath = strings.TrimPrefix(tpath, "/")
 		name := strings.TrimSuffix(tpath, templateSuffix)
@@ -101,45 +112,76 @@ func (ts *Templates) Reload() error {
 		if err != nil {
 			return errors.Wrapf(err, "parse template %q", path)
 		}
-		ts.tpls[name] = tpl
-		log.Debugf("add template %q", name)
-		return nil
-	})
-	if err != nil {
-		return errors.Wrap(err, "walk-and-parse")
+		if fi.Name() == layoutTemplate {
+			layout = tpl
+		} else {
+			tpls = append(tpls, &TemplateExt{
+				Name:     name,
+				Template: tpl,
+			})
+		}
 	}
-	log.Infof("parse templates ... done")
+
+	for _, tple := range tpls {
+		tple.LayoutTemplate = layout
+		ts.tpls[tple.Name] = tple
+		log.Debugf("add template %q", tple.Name)
+	}
 
 	return nil
 }
 
+func (ts *Templates) Reload() error {
+	ts.Lock()
+	defer ts.Unlock()
+	log.Infof("load templates ...")
+	ts.tpls = make(map[string]*TemplateExt)
+	err := ts.loadDir(ts.root)
+	if err != nil {
+		return errors.Wrapf(err, "load-dir %q", ts.root)
+	}
+	log.Infof("load templates ... done")
+	return err
+}
+
 type TemplateContext struct {
+	Slot *template.Template
 }
 
 func (ts *Templates) Render(w io.Writer, name string) error {
 	ts.RLock()
 	defer ts.RUnlock()
 
-	tpl, ok := ts.tpls[name]
+	tplex, ok := ts.tpls[name]
 	if !ok {
 		return errors.Errorf("no such template %q", name)
 	}
-	tctx := &TemplateContext{}
-	return tpl.Execute(w, tctx)
+
+	if tplex.LayoutTemplate != nil {
+		return tplex.LayoutTemplate.Execute(w, TemplateContext{
+			Slot: tplex.Template,
+		})
+	} else {
+		return tplex.Template.Execute(w, TemplateContext{})
+	}
 }
 
 func (ts *Templates) funcs() template.FuncMap {
 	fm := template.FuncMap{
 		"RenderTemplate": func(name string, data interface{}) (ret template.HTML, err error) {
-			ts.RLock()
-			defer ts.RUnlock()
 			tpl, ok := ts.tpls[name]
 			if !ok {
 				err = errors.Errorf("no such template %q", name)
 				return
 			}
 			buf := bytes.NewBuffer([]byte{})
-			err = tpl.Execute(buf, data)
+			err = tpl.Template.Execute(buf, data)
+			ret = template.HTML(buf.String())
+			return
+		},
+		"Slot": func(tctx TemplateContext) (ret template.HTML, err error) {
+			buf := bytes.NewBuffer([]byte{})
+			err = tctx.Slot.Execute(buf, tctx)
 			ret = template.HTML(buf.String())
 			return
 		},
