@@ -144,8 +144,19 @@ func (ts *Templates) Reload() error {
 	return err
 }
 
+//
+
 type TemplateContext struct {
-	Slot *template.Template
+	Slot    *template.Template
+	Current string
+	Args    []any
+}
+
+func (tctx TemplateContext) Arg(idx int) (any, error) {
+	if idx < 0 || idx >= len(tctx.Args) {
+		return nil, errors.Errorf("index out of bounds")
+	}
+	return tctx.Args[idx], nil
 }
 
 func (ts *Templates) Render(w io.Writer, name string) error {
@@ -159,10 +170,13 @@ func (ts *Templates) Render(w io.Writer, name string) error {
 
 	if tplex.LayoutTemplate != nil {
 		return tplex.LayoutTemplate.Execute(w, TemplateContext{
-			Slot: tplex.Template,
+			Slot:    tplex.Template,
+			Current: name,
 		})
 	} else {
-		return tplex.Template.Execute(w, TemplateContext{})
+		return tplex.Template.Execute(w, TemplateContext{
+			Current: name,
+		})
 	}
 }
 
@@ -195,6 +209,37 @@ func (ts *Templates) funcs() template.FuncMap {
 		"ContentData": func(path string) (map[string]any, error) {
 			v, err := ts.cms.Data(path)
 			return v, err
+		},
+		"Current": func(tctx TemplateContext) string {
+			return tctx.Current
+		},
+		"AttrIfCurrent": func(tctx TemplateContext, name string, value string) template.HTMLAttr {
+			if name != tctx.Current {
+				return ""
+			}
+			return template.HTMLAttr(value)
+		},
+		"ClassIfCurrent": func(tctx TemplateContext, name string, value string) template.HTMLAttr {
+			if name != tctx.Current {
+				return ""
+			}
+			return template.HTMLAttr("class=" + value)
+		},
+		"Component": func(tctx TemplateContext, name string, args ...any) (ret template.HTML, err error) {
+			tpl, ok := ts.tpls[name]
+			if !ok {
+				err = errors.Errorf("no such template %q", name)
+				return
+			}
+			tctx.Args = args
+			buf := bytes.NewBuffer([]byte{})
+			err = tpl.Template.Execute(buf, tctx)
+			ret = template.HTML(buf.String())
+			return
+		},
+		"Log": func(v any) error {
+			log.Infof("%#v", v)
+			return nil
 		},
 	}
 	return fm
